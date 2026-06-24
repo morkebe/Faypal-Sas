@@ -136,6 +136,16 @@ def run(zone_id: UUID, db: Session) -> dict:
     # 2. Fallback rule-based si ML absent ou indisponible
     if resultat is None:
         resultat, meteo = _run_fallback(zone_id, zone, db)
+    else:
+        # ML réussi — enrichir facteurs avec météo Open-Meteo pour affichage
+        metadata  = zone.metadata_ or {}
+        latitude  = metadata.get("latitude")
+        longitude = metadata.get("longitude")
+        if latitude is not None and longitude is not None:
+            weather = get_weather(latitude, longitude)
+            if weather:
+                meteo = weather
+                resultat["facteurs"]["meteo"] = {"donnees": weather}
 
     # 3. Persistance
     risk_score = RiskScore(

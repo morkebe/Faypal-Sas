@@ -185,8 +185,7 @@ export interface DashboardStats {
 export const getDashboardStats = (): Promise<DashboardStats> =>
   apiFetch<DashboardStats>("/dashboard/stats");
 
-// ── ML Prediction API (port 8001) ─────────────────────────────────────────────
-const ML_URL = (import.meta.env.VITE_ML_URL as string | undefined) ?? "http://localhost:8001";
+// ── ML Predictions (via backend proxy) ───────────────────────────────────────
 
 export interface MLHorizon {
   semaine_cible: number;
@@ -215,14 +214,11 @@ export function isoWeek(date = new Date()): number {
   return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
 }
 
-export async function getMLPrediction(region: string, semaine: number, annee: number): Promise<MLPrediction> {
-  const res = await fetch(`${ML_URL}/predict/multi-horizon`, {
-    method:  "POST",
-    headers: { "Content-Type": "application/json" },
-    body:    JSON.stringify({ region: region.toUpperCase(), semaine, annee }),
+export function getMLPrediction(region: string, semaine: number, annee: number): Promise<MLPrediction> {
+  return apiFetch<MLPrediction>("/ml/predict/multi-horizon", {
+    method: "POST",
+    body:   JSON.stringify({ region: region.toUpperCase(), semaine, annee }),
   });
-  if (!res.ok) throw new Error(`ML API ${res.status}`);
-  return res.json() as Promise<MLPrediction>;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────

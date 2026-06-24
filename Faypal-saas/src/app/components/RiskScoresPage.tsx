@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+/** @jsxRuntime classic */
+import React, { useState, useEffect, useRef } from "react";
 import {
   MapPin, TrendingUp, TrendingDown, Shield,
   AlertTriangle, CheckCircle, Activity, RefreshCw, Loader,
@@ -9,7 +10,8 @@ import {
 } from "recharts";
 import {
   getRiskScores, getZones, triggerScoreCalc, timeAgo,
-  type RiskScoreResponse, type ZoneResponse,
+  getMLPrediction, isoWeek,
+  type RiskScoreResponse, type ZoneResponse, type MLPrediction,
 } from "../lib/api";
 
 interface RegionRow {
@@ -17,30 +19,32 @@ interface RegionRow {
   risk: number;
   trend: string;
   trendUp: boolean;
-  temp: number;
-  humidity: number;
-  rainfall: number;
-  mosquitoes: number;
+  temp:       number | null;
+  humidity:   number | null;
+  rainfall:   number | null;
+  mosquitoes: number | null;
   device: string;
   zoneId: string | null;
   lastCalc: string | null;
+  horizons?: Record<string, unknown> | null;
+  version_algo?: string | null;
 }
 
 const STATIC_REGIONS: RegionRow[] = [
-  { name: "Kédougou",    risk: 91, trend: "+12%", trendUp: true,  temp: 33.2, humidity: 86, rainfall: 220, mosquitoes: 134, device: "MB-01", zoneId: null, lastCalc: null },
-  { name: "Tambacounda", risk: 85, trend: "+7%",  trendUp: true,  temp: 34.1, humidity: 77, rainfall: 185, mosquitoes: 112, device: "MB-03", zoneId: null, lastCalc: null },
-  { name: "Kolda",       risk: 79, trend: "+3%",  trendUp: true,  temp: 31.4, humidity: 82, rainfall: 168, mosquitoes: 96,  device: "MB-05", zoneId: null, lastCalc: null },
-  { name: "Kaffrine",    risk: 72, trend: "+6%",  trendUp: true,  temp: 33.5, humidity: 70, rainfall: 88,  mosquitoes: 71,  device: "—",     zoneId: null, lastCalc: null },
-  { name: "Kaolack",     risk: 67, trend: "+4%",  trendUp: true,  temp: 32.3, humidity: 71, rainfall: 94,  mosquitoes: 63,  device: "MB-13", zoneId: null, lastCalc: null },
-  { name: "Sédhiou",     risk: 68, trend: "+2%",  trendUp: true,  temp: 31.1, humidity: 75, rainfall: 110, mosquitoes: 57,  device: "—",     zoneId: null, lastCalc: null },
-  { name: "Ziguinchor",  risk: 58, trend: "-1%",  trendUp: false, temp: 29.8, humidity: 80, rainfall: 132, mosquitoes: 44,  device: "—",     zoneId: null, lastCalc: null },
-  { name: "Matam",       risk: 47, trend: "-2%",  trendUp: false, temp: 34.8, humidity: 52, rainfall: 48,  mosquitoes: 39,  device: "MB-09", zoneId: null, lastCalc: null },
-  { name: "Fatick",      risk: 61, trend: "-3%",  trendUp: false, temp: 30.4, humidity: 69, rainfall: 78,  mosquitoes: 22,  device: "MB-14", zoneId: null, lastCalc: null },
-  { name: "Diourbel",    risk: 54, trend: "+1%",  trendUp: true,  temp: 32.1, humidity: 60, rainfall: 62,  mosquitoes: 31,  device: "—",     zoneId: null, lastCalc: null },
-  { name: "Thiès",       risk: 31, trend: "-18%", trendUp: false, temp: 28.1, humidity: 61, rainfall: 42,  mosquitoes: 22,  device: "MB-11", zoneId: null, lastCalc: null },
-  { name: "Louga",       risk: 28, trend: "-4%",  trendUp: false, temp: 30.2, humidity: 48, rainfall: 22,  mosquitoes: 14,  device: "—",     zoneId: null, lastCalc: null },
-  { name: "Dakar",       risk: 22, trend: "-6%",  trendUp: false, temp: 27.4, humidity: 58, rainfall: 28,  mosquitoes: 8,   device: "—",     zoneId: null, lastCalc: null },
-  { name: "Saint-Louis", risk: 19, trend: "-8%",  trendUp: false, temp: 28.3, humidity: 44, rainfall: 14,  mosquitoes: 6,   device: "—",     zoneId: null, lastCalc: null },
+  { name: "Kédougou",    risk: 0, trend: "—", trendUp: false, temp: null, humidity: null, rainfall: null, mosquitoes: null, device: "—", zoneId: null, lastCalc: null },
+  { name: "Tambacounda", risk: 0, trend: "—", trendUp: false, temp: null, humidity: null, rainfall: null, mosquitoes: null, device: "—", zoneId: null, lastCalc: null },
+  { name: "Kolda",       risk: 0, trend: "—", trendUp: false, temp: null, humidity: null, rainfall: null, mosquitoes: null, device: "—", zoneId: null, lastCalc: null },
+  { name: "Kaffrine",    risk: 0, trend: "—", trendUp: false, temp: null, humidity: null, rainfall: null, mosquitoes: null, device: "—", zoneId: null, lastCalc: null },
+  { name: "Kaolack",     risk: 0, trend: "—", trendUp: false, temp: null, humidity: null, rainfall: null, mosquitoes: null, device: "—", zoneId: null, lastCalc: null },
+  { name: "Sédhiou",     risk: 0, trend: "—", trendUp: false, temp: null, humidity: null, rainfall: null, mosquitoes: null, device: "—", zoneId: null, lastCalc: null },
+  { name: "Ziguinchor",  risk: 0, trend: "—", trendUp: false, temp: null, humidity: null, rainfall: null, mosquitoes: null, device: "—", zoneId: null, lastCalc: null },
+  { name: "Matam",       risk: 0, trend: "—", trendUp: false, temp: null, humidity: null, rainfall: null, mosquitoes: null, device: "—", zoneId: null, lastCalc: null },
+  { name: "Fatick",      risk: 0, trend: "—", trendUp: false, temp: null, humidity: null, rainfall: null, mosquitoes: null, device: "—", zoneId: null, lastCalc: null },
+  { name: "Diourbel",    risk: 0, trend: "—", trendUp: false, temp: null, humidity: null, rainfall: null, mosquitoes: null, device: "—", zoneId: null, lastCalc: null },
+  { name: "Thiès",       risk: 0, trend: "—", trendUp: false, temp: null, humidity: null, rainfall: null, mosquitoes: null, device: "—", zoneId: null, lastCalc: null },
+  { name: "Louga",       risk: 0, trend: "—", trendUp: false, temp: null, humidity: null, rainfall: null, mosquitoes: null, device: "—", zoneId: null, lastCalc: null },
+  { name: "Dakar",       risk: 0, trend: "—", trendUp: false, temp: null, humidity: null, rainfall: null, mosquitoes: null, device: "—", zoneId: null, lastCalc: null },
+  { name: "Saint-Louis", risk: 0, trend: "—", trendUp: false, temp: null, humidity: null, rainfall: null, mosquitoes: null, device: "—", zoneId: null, lastCalc: null },
 ];
 
 type Level = "all" | "critique" | "élevé" | "moyen" | "faible";
@@ -62,33 +66,56 @@ function mergeApiData(zones: ZoneResponse[], scores: RiskScoreResponse[]): Regio
   const regionZones = new Map<string, string>();
   zones.filter(z => z.niveau === "region").forEach(z => regionZones.set(z.nom, z.id));
 
-  const latestByZone = new Map<string, RiskScoreResponse>();
+  // Grouper tous les scores par zone (déjà triés desc par l'API)
+  const scoresByZone = new Map<string, RiskScoreResponse[]>();
   scores.forEach(s => {
-    const ex = latestByZone.get(s.zone_id);
-    if (!ex || s.calcule_a > ex.calcule_a) latestByZone.set(s.zone_id, s);
+    const list = scoresByZone.get(s.zone_id) ?? [];
+    list.push(s);
+    scoresByZone.set(s.zone_id, list);
   });
 
   return STATIC_REGIONS.map(r => {
     const zoneId = regionZones.get(r.name) ?? null;
     if (!zoneId) return { ...r, zoneId: null, lastCalc: null };
-    const score = latestByZone.get(zoneId);
-    if (!score) return { ...r, zoneId, lastCalc: null };
 
-    const realRisk = Math.round(score.score * 100);
-    const meteo = (score.facteurs as Record<string, unknown> | null)?.meteo as Record<string, unknown> | undefined;
-    const donnees = meteo?.donnees as Record<string, number> | undefined;
-    const moustiques = (score.facteurs as Record<string, unknown> | null)?.moustiques as Record<string, unknown> | undefined;
-    const nbVecteurs = (moustiques?.nb_vecteurs_24h as number | undefined) ?? r.mosquitoes;
+    const list = scoresByZone.get(zoneId) ?? [];
+    if (list.length === 0) return { ...r, zoneId, lastCalc: null };
+
+    const current  = list[0];
+    const previous = list[1] ?? null;
+
+    const realRisk = Math.round(current.score * 100);
+
+    // Tendance calculée depuis les 2 derniers scores réels
+    let trend   = r.trend;
+    let trendUp = r.trendUp;
+    if (previous) {
+      const diff = ((current.score - previous.score) / Math.max(previous.score, 0.01)) * 100;
+      trend   = `${diff >= 0 ? "+" : ""}${diff.toFixed(1)}%`;
+      trendUp = diff > 0;
+    }
+
+    const facteurs   = current.facteurs as Record<string, unknown> | null;
+    const meteo      = facteurs?.meteo as Record<string, unknown> | undefined;
+    const donnees    = meteo?.donnees as Record<string, number> | undefined;
+    const moustiques = facteurs?.moustiques as Record<string, unknown> | undefined;
+    // Ne montrer que des valeurs réelles — null = pas de capteur / pas de scoring rule-based
+    const nbVecteurs = (moustiques?.nb_vecteurs_24h as number | undefined) ?? null;
+    const horizons   = facteurs?.horizons as Record<string, unknown> | null ?? null;
 
     return {
       ...r,
-      risk:       realRisk,
-      temp:       donnees?.temperature ?? r.temp,
-      humidity:   donnees?.humidity    ?? r.humidity,
-      rainfall:   donnees?.precipitation ?? r.rainfall,
-      mosquitoes: nbVecteurs,
+      risk:         realRisk,
+      trend,
+      trendUp,
+      temp:         donnees?.temperature    ?? null,
+      humidity:     donnees?.humidity       ?? null,
+      rainfall:     donnees?.precipitation  ?? null,
+      mosquitoes:   nbVecteurs,
       zoneId,
-      lastCalc:   score.calcule_a,
+      lastCalc:     current.calcule_a,
+      horizons,
+      version_algo: current.version_algo,
     };
   });
 }
@@ -104,8 +131,13 @@ export function RiskScoresPage({ userRole }: RiskScoresPageProps) {
   const [loading, setLoading] = useState(true);
   const [calcLoading, setCalcLoading] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [selected, setSelected] = useState<RegionRow | null>(null);
+  const [mlPred, setMlPred] = useState<MLPrediction | null>(null);
+  const [mlLoading, setMlLoading] = useState(false);
+  const [mlError, setMlError] = useState<string | null>(null);
 
-  const canCalc = userRole === "admin" || userRole === "epidemiologist";
+  const canCalc = userRole === "admin" || userRole === "analyste";
+  const activeRegionRef = useRef<string | null>(null);
 
   const loadData = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -138,6 +170,40 @@ export function RiskScoresPage({ userRole }: RiskScoresPageProps) {
     }
   };
 
+  const handleSelect = (r: RegionRow) => {
+    activeRegionRef.current = r.name;
+    setSelected(r);
+    setMlPred(null);
+    setMlError(null);
+    setMlLoading(true);
+    getMLPrediction(r.name, isoWeek(), new Date().getFullYear())
+      .then(pred => {
+        if (activeRegionRef.current !== r.name) return;
+        setMlPred(pred);
+      })
+      .catch((err: unknown) => {
+        if (activeRegionRef.current !== r.name) return;
+        const msg = err instanceof Error ? err.message : "Erreur inconnue";
+        setMlError(msg);
+      })
+      .finally(() => {
+        if (activeRegionRef.current !== r.name) return;
+        setMlLoading(false);
+      });
+  };
+
+  const handleRefresh = async () => {
+    if (canCalc) {
+      // Recalcule tous les scores en parallèle, puis recharge
+      setLoading(true);
+      const zoneIds = regions.filter(r => r.zoneId).map(r => r.zoneId as string);
+      await Promise.allSettled(zoneIds.map(id => triggerScoreCalc(id)));
+      await loadData(true);
+    } else {
+      await loadData(true);
+    }
+  };
+
   const filtered = regions
     .filter(r => filter === "all" || getLevel(r.risk).level === filter)
     .sort((a, b) => sort === "risk" ? b.risk - a.risk : a.name.localeCompare(b.name));
@@ -165,13 +231,13 @@ export function RiskScoresPage({ userRole }: RiskScoresPageProps) {
           </p>
         </div>
         <button
-          onClick={() => loadData(true)}
+          onClick={handleRefresh}
           disabled={loading}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
           style={{ backgroundColor: "var(--input-background)", border: "1px solid var(--border)", color: "var(--muted-foreground)" }}
         >
           <RefreshCw size={12} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} />
-          Rafraîchir
+          {canCalc ? "Recalculer tout" : "Rafraîchir"}
         </button>
       </div>
 
@@ -304,10 +370,11 @@ export function RiskScoresPage({ userRole }: RiskScoresPageProps) {
           return (
             <div
               key={r.name}
-              className="grid grid-cols-2 sm:grid-cols-12 items-center px-4 sm:px-5 py-3 gap-3 sm:gap-0"
+              onClick={() => handleSelect(r)}
+              className="grid grid-cols-2 sm:grid-cols-12 items-center px-4 sm:px-5 py-3 gap-3 sm:gap-0 cursor-pointer"
               style={{
                 borderBottom: idx < filtered.length - 1 ? "1px solid var(--border)" : "none",
-                backgroundColor: r.risk >= 80 ? "rgba(239,68,68,0.02)" : "transparent",
+                backgroundColor: selected?.name === r.name ? "rgba(26,86,219,0.04)" : r.risk >= 80 ? "rgba(239,68,68,0.02)" : "transparent",
               }}
             >
               {/* Region */}
@@ -343,22 +410,30 @@ export function RiskScoresPage({ userRole }: RiskScoresPageProps) {
 
               {/* Temp */}
               <div className="sm:col-span-1 hidden sm:block">
-                <span style={{ fontFamily: "var(--font-family-mono)", fontSize: "12px", fontWeight: 600, color: "var(--foreground)" }}>{r.temp}°C</span>
+                <span style={{ fontFamily: "var(--font-family-mono)", fontSize: "12px", fontWeight: 600, color: r.temp !== null ? "var(--foreground)" : "var(--muted-foreground)" }}>
+                  {r.temp !== null ? `${r.temp}°C` : "—"}
+                </span>
               </div>
 
               {/* Humidity */}
               <div className="sm:col-span-1 hidden sm:block">
-                <span style={{ fontFamily: "var(--font-family-mono)", fontSize: "12px", fontWeight: 600, color: "var(--foreground)" }}>{r.humidity}%</span>
+                <span style={{ fontFamily: "var(--font-family-mono)", fontSize: "12px", fontWeight: 600, color: r.humidity !== null ? "var(--foreground)" : "var(--muted-foreground)" }}>
+                  {r.humidity !== null ? `${r.humidity}%` : "—"}
+                </span>
               </div>
 
               {/* Rainfall */}
               <div className="sm:col-span-1 hidden sm:block">
-                <span style={{ fontFamily: "var(--font-family-mono)", fontSize: "12px", fontWeight: 600, color: "var(--foreground)" }}>{r.rainfall}mm</span>
+                <span style={{ fontFamily: "var(--font-family-mono)", fontSize: "12px", fontWeight: 600, color: r.rainfall !== null ? "var(--foreground)" : "var(--muted-foreground)" }}>
+                  {r.rainfall !== null ? `${r.rainfall}mm` : "—"}
+                </span>
               </div>
 
               {/* Mosquitoes */}
               <div className="sm:col-span-1 hidden sm:block">
-                <span style={{ fontFamily: "var(--font-family-mono)", fontSize: "12px", fontWeight: 700, color: "#0D9488" }}>{r.mosquitoes}</span>
+                <span style={{ fontFamily: "var(--font-family-mono)", fontSize: "12px", fontWeight: 700, color: r.mosquitoes !== null ? "#0D9488" : "var(--muted-foreground)" }}>
+                  {r.mosquitoes !== null ? r.mosquitoes : "—"}
+                </span>
               </div>
 
               {/* Device */}
@@ -379,7 +454,7 @@ export function RiskScoresPage({ userRole }: RiskScoresPageProps) {
               <div className="sm:col-span-1 hidden sm:flex justify-end">
                 {canCalc && r.zoneId && (
                   <button
-                    onClick={() => handleCalc(r.zoneId!, r.name)}
+                    onClick={(e) => { e.stopPropagation(); handleCalc(r.zoneId!, r.name); }}
                     disabled={isCalcing}
                     title="Recalculer le score"
                     className="flex items-center justify-center rounded-lg cursor-pointer"
@@ -396,6 +471,78 @@ export function RiskScoresPage({ userRole }: RiskScoresPageProps) {
           );
         })}
       </div>
+
+      {/* ── Panneau détail prédictions ML ─────────────────────────── */}
+      {selected && (
+        <div className="fixed bottom-4 right-4 z-50 w-72 bg-white rounded-xl shadow-xl border border-gray-200 p-4"
+          style={{ fontFamily: "var(--font-family-base)" }}>
+
+          {/* Header */}
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <h3 style={{ fontWeight: 700, fontSize: "14px", color: "var(--foreground)" }}>
+                {selected.name}
+              </h3>
+              <p style={{ fontSize: "10px", color: "var(--muted-foreground)", marginTop: "2px" }}>
+                Score actuel · {selected.risk}% · {selected.lastCalc ? timeAgo(selected.lastCalc) : "données statiques"}
+              </p>
+            </div>
+            <button onClick={() => { setSelected(null); setMlPred(null); setMlError(null); }}
+              style={{ color: "var(--muted-foreground)", fontSize: "16px", lineHeight: 1, background: "none", border: "none", cursor: "pointer" }}>
+              ✕
+            </button>
+          </div>
+
+          {/* Prédictions ML */}
+          <div style={{ borderTop: "1px solid var(--border)", paddingTop: "10px" }}>
+            <p style={{ fontSize: "10px", fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
+              Prédictions ML
+              {mlLoading && <span style={{ display: "inline-block", width: "10px", height: "10px", border: "1.5px solid #94A3B8", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }} />}
+            </p>
+
+            {mlPred ? (
+              <>
+                {console.log("[RENDER] mlPred.horizons =", mlPred.horizons)}
+                {(["S+1", "S+4", "S+12"] as const).map(h => {
+                  const hz = (mlPred.horizons as Record<string, unknown>)[h] as Record<string, unknown> | undefined;
+                  if (!hz) return null;
+                  const niv = (hz.niveau_risque as string ?? "FAIBLE").toUpperCase();
+                  const cas = hz.cas_predits as number ?? 0;
+                  console.log(`[RENDER] ${h} → cas=${cas} niv=${niv}`);
+                  const isPic = mlPred.pic_attendu === h;
+                  const nivColor = niv === "CRITIQUE" ? "#EF4444" : niv === "ELEVE" ? "#F97316" : niv === "MODERE" ? "#EAB308" : "#22C55E";
+                  const intervalle = hz.intervalle as { min: number; max: number } | undefined;
+                  return (
+                    <div key={h} style={{ padding: "6px 0", borderBottom: "1px solid var(--border)" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <span style={{ fontFamily: "var(--font-family-mono)", fontSize: "11px", color: "var(--muted-foreground)", width: "36px" }}>{h}</span>
+                        <span style={{ fontFamily: "var(--font-family-mono)", fontSize: "12px", fontWeight: 700, color: "var(--foreground)" }}>{cas.toLocaleString()} cas</span>
+                        <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 6px", borderRadius: "999px", color: nivColor, background: `${nivColor}18` }}>
+                          {niv}{isPic ? " ★" : ""}
+                        </span>
+                      </div>
+                      {intervalle && (
+                        <div style={{ fontFamily: "var(--font-family-mono)", fontSize: "9px", color: "var(--muted-foreground)", marginTop: "2px", paddingLeft: "36px" }}>
+                          [{intervalle.min.toLocaleString()} – {intervalle.max.toLocaleString()}]
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                {mlPred.tendance_4sem && (
+                  <p style={{ fontSize: "10px", color: "var(--muted-foreground)", marginTop: "8px" }}>
+                    Tendance : {mlPred.tendance_4sem === "hausse" ? "↗ hausse" : mlPred.tendance_4sem === "baisse" ? "↘ baisse" : "→ stable"}
+                  </p>
+                )}
+              </>
+            ) : !mlLoading && (
+              <p style={{ fontSize: "11px", color: mlError ? "#EF4444" : "var(--muted-foreground)" }}>
+                {mlError ? `Erreur : ${mlError}` : "Prédictions indisponibles"}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
     </div>
   );
