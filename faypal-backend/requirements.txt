@@ -1,0 +1,30 @@
+# Framework
+fastapi==0.115.0
+uvicorn==0.30.6
+
+# Base de données
+sqlalchemy==2.0.36
+psycopg2-binary==2.9.10
+alembic==1.13.3
+geoalchemy2==0.15.2
+
+# Validation
+pydantic==2.9.2
+pydantic[email]==2.9.2
+email-validator==2.2.0
+
+# Variables d'environnement
+python-dotenv==1.0.1
+
+# Sécurité JWT (pour FAYPAL-29)
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
+pydantic-settings==2.6.1
+python-multipart==0.0.17
+requests==2.32.3
+
+# Tests (FAYPAL-31)
+pytest==8.3.5
+pytest-cov==6.1.0
+httpx==0.28.1
