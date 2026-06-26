@@ -1,0 +1,28 @@
+# Environnement virtuel
+venv/
+env/
+
+# Variables d'environnement - NE JAMAIS PUSHER
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Base de données locale
+*.db
+*.sqlite3
+
+# VS Code
+.vscode/
+
+# Logs
+*.log
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/

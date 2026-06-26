@@ -1,0 +1,11 @@
+services:
+  frontend:
+    build:
+      context: .
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+        VITE_ML_URL: ${VITE_ML_URL:-http://localhost:8001}
+    container_name: faypal_frontend
+    ports:
+      - "3000:80"
+    restart: unless-stopped

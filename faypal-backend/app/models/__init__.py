@@ -7,4 +7,5 @@ from app.models.risk_score       import RiskScore
 from app.models.alert            import Alert
 from app.models.user             import User
 from app.models.user_zone        import UserZone
-from app.models.alert_recipient  import AlertRecipient
+from app.models.alert_recipient       import AlertRecipient
+from app.models.pending_registration  import PendingRegistration

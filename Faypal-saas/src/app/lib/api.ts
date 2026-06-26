@@ -66,6 +66,36 @@ export async function register(email: string, password: string, nom_complet: str
   }
 }
 
+export async function initiateRegistration(email: string, password: string, nom_complet: string): Promise<void> {
+  const res = await fetch(`${BASE_URL}/auth/register/initiate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, mot_de_passe: password, nom_complet }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Erreur lors de l'inscription" }));
+    throw new Error(err.detail ?? "Erreur lors de l'inscription");
+  }
+}
+
+export interface VerifyResponse {
+  access_token: string;
+  token_type: string;
+  user: { id: string; email: string; nom_complet: string | null; role: string };
+}
+export async function verifyRegistration(email: string, code: string): Promise<VerifyResponse> {
+  const res = await fetch(`${BASE_URL}/auth/register/verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, code }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Code invalide" }));
+    throw new Error(err.detail ?? "Code invalide");
+  }
+  return res.json() as Promise<VerifyResponse>;
+}
+
 export interface UserResponse {
   id: string;
   email: string;

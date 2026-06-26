@@ -47,6 +47,8 @@ services:
       DEBUG: "True"
       ML_SERVICE_URL: http://ml_service:8001
       ML_SERVICE_TIMEOUT: "10"
+      GMAIL_USER: ${GMAIL_USER}
+      GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD}
     depends_on:
       db:
         condition: service_healthy
