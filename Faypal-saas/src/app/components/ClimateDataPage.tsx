@@ -9,35 +9,9 @@ import {
   ResponsiveContainer, Legend,
 } from "recharts";
 import {
-  getRiskScores, getZones, timeAgo,
-  type RiskScoreResponse, type ZoneResponse,
+  getRiskScores, getZones, getNationalWeather, timeAgo,
+  type RiskScoreResponse, type ZoneResponse, type NationalWeather,
 } from "../lib/api";
-
-// Moyennes saisonnières de référence (Sénégal) — remplacées par vraies données quand dispo
-const MONTHLY = [
-  { month: "Jan", temp: 24, humidity: 42, rainfall: 2,   risk: 28 },
-  { month: "Fév", temp: 26, humidity: 40, rainfall: 3,   risk: 24 },
-  { month: "Mar", temp: 29, humidity: 45, rainfall: 8,   risk: 31 },
-  { month: "Avr", temp: 32, humidity: 52, rainfall: 18,  risk: 45 },
-  { month: "Mai", temp: 34, humidity: 62, rainfall: 48,  risk: 62 },
-  { month: "Jun", temp: 33, humidity: 74, rainfall: 95,  risk: 71 },
-  { month: "Jul", temp: 31, humidity: 82, rainfall: 185, risk: 78 },
-  { month: "Aoû", temp: 30, humidity: 86, rainfall: 220, risk: 82 },
-  { month: "Sep", temp: 31, humidity: 80, rainfall: 140, risk: 74 },
-  { month: "Oct", temp: 32, humidity: 65, rainfall: 48,  risk: 58 },
-  { month: "Nov", temp: 29, humidity: 50, rainfall: 8,   risk: 41 },
-  { month: "Déc", temp: 26, humidity: 44, rainfall: 2,   risk: 33 },
-];
-
-const WEEKLY = [
-  { day: "Lun", temp: 31.2, humidity: 78, rainfall: 12 },
-  { day: "Mar", temp: 32.4, humidity: 74, rainfall: 0  },
-  { day: "Mer", temp: 33.1, humidity: 71, rainfall: 0  },
-  { day: "Jeu", temp: 31.8, humidity: 82, rainfall: 24 },
-  { day: "Ven", temp: 30.5, humidity: 86, rainfall: 38 },
-  { day: "Sam", temp: 29.8, humidity: 84, rainfall: 18 },
-  { day: "Dim", temp: 31.4, humidity: 82, rainfall: 14 },
-];
 
 const tooltipStyle = {
   backgroundColor: "#0F172A", border: "none", borderRadius: "8px",
@@ -84,16 +58,18 @@ function fmt(v: number | null, suffix = ""): string {
 }
 
 export function ClimateDataPage() {
-  const [rows, setRows]           = useState<RegionRow[]>([]);
-  const [loading, setLoading]     = useState(true);
+  const [rows, setRows]             = useState<RegionRow[]>([]);
+  const [loading, setLoading]       = useState(true);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
+  const [national, setNational]     = useState<NationalWeather | null>(null);
 
   useEffect(() => { loadData(); }, []);
 
   async function loadData() {
     setLoading(true);
     try {
-      const [scores, zones] = await Promise.all([getRiskScores(), getZones()]);
+      const [scores, zones, nat] = await Promise.all([getRiskScores(), getZones(), getNationalWeather()]);
+      setNational(nat);
 
       const zoneMap = new Map<string, ZoneResponse>(zones.map(z => [z.id, z]));
 
@@ -197,16 +173,16 @@ export function ClimateDataPage() {
             <h3 style={{ fontFamily: "var(--font-family-display)", fontWeight: 700, fontSize: "13px", color: "var(--foreground)" }}>
               Température & Humidité — 12 mois
             </h3>
-            <p style={{ fontSize: "11px", color: "var(--muted-foreground)", marginTop: "2px" }}>Moyennes saisonnières de référence · Sénégal</p>
+            <p style={{ fontSize: "11px", color: "var(--muted-foreground)", marginTop: "2px" }}>Données réelles Open-Meteo · Sénégal</p>
           </div>
           <ResponsiveContainer width="100%" height={180}>
-            <LineChart data={MONTHLY} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+            <LineChart data={national?.monthly ?? []} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.2)" />
               <XAxis dataKey="month" tick={{ fontSize: 9, fill: "#94A3B8", fontFamily: "var(--font-family-mono)" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 9, fill: "#94A3B8", fontFamily: "var(--font-family-mono)" }} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={tooltipStyle} />
               <Legend iconSize={8} wrapperStyle={{ fontSize: "11px", fontFamily: "var(--font-family-mono)" }} />
-              <Line type="monotone" dataKey="temp"     name="Temp (°C)"   stroke="#D97706" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="temp"     name="Temp (°C)"    stroke="#D97706" strokeWidth={2} dot={false} />
               <Line type="monotone" dataKey="humidity" name="Humidité (%)" stroke="#1A56DB" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
@@ -218,10 +194,10 @@ export function ClimateDataPage() {
             <h3 style={{ fontFamily: "var(--font-family-display)", fontWeight: 700, fontSize: "13px", color: "var(--foreground)" }}>
               Précipitations — 12 mois
             </h3>
-            <p style={{ fontSize: "11px", color: "var(--muted-foreground)", marginTop: "2px" }}>Cumul mensuel de référence en mm</p>
+            <p style={{ fontSize: "11px", color: "var(--muted-foreground)", marginTop: "2px" }}>Cumul mensuel réel en mm · Open-Meteo</p>
           </div>
           <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={MONTHLY} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+            <BarChart data={national?.monthly ?? []} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.2)" />
               <XAxis dataKey="month" tick={{ fontSize: 9, fill: "#94A3B8", fontFamily: "var(--font-family-mono)" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 9, fill: "#94A3B8", fontFamily: "var(--font-family-mono)" }} axisLine={false} tickLine={false} />
@@ -239,12 +215,12 @@ export function ClimateDataPage() {
         <div className="bg-card rounded-xl border border-border shadow-sm p-4 sm:p-5">
           <div className="mb-4">
             <h3 style={{ fontFamily: "var(--font-family-display)", fontWeight: 700, fontSize: "13px", color: "var(--foreground)" }}>
-              Semaine en cours
+              7 derniers jours
             </h3>
-            <p style={{ fontSize: "11px", color: "var(--muted-foreground)", marginTop: "2px" }}>Temp · Humidité · Pluie · Référence saisonnière</p>
+            <p style={{ fontSize: "11px", color: "var(--muted-foreground)", marginTop: "2px" }}>Temp · Humidité · Pluie · Données réelles Open-Meteo</p>
           </div>
           <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={WEEKLY} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+            <BarChart data={national?.weekly ?? []} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.2)" />
               <XAxis dataKey="day" tick={{ fontSize: 9, fill: "#94A3B8", fontFamily: "var(--font-family-mono)" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 9, fill: "#94A3B8", fontFamily: "var(--font-family-mono)" }} axisLine={false} tickLine={false} />
@@ -256,33 +232,27 @@ export function ClimateDataPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* Climat × Risque */}
+        {/* Temp semaine */}
         <div className="bg-card rounded-xl border border-border shadow-sm p-4 sm:p-5">
           <div className="mb-4">
             <h3 style={{ fontFamily: "var(--font-family-display)", fontWeight: 700, fontSize: "13px", color: "var(--foreground)" }}>
-              Climat × Risque paludisme
+              Température — 7 jours
             </h3>
-            <p style={{ fontSize: "11px", color: "var(--muted-foreground)", marginTop: "2px" }}>Corrélation annuelle de référence</p>
+            <p style={{ fontSize: "11px", color: "var(--muted-foreground)", marginTop: "2px" }}>Évolution journalière · Open-Meteo</p>
           </div>
           <ResponsiveContainer width="100%" height={180}>
-            <AreaChart data={MONTHLY} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+            <AreaChart data={national?.weekly ?? []} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
               <defs>
-                <linearGradient id="rainGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#0D9488" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="#0D9488" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="riskGrad2" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#EF4444" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="#EF4444" stopOpacity={0} />
+                <linearGradient id="tempGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#D97706" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="#D97706" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.2)" />
-              <XAxis dataKey="month" tick={{ fontSize: 9, fill: "#94A3B8", fontFamily: "var(--font-family-mono)" }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="day" tick={{ fontSize: 9, fill: "#94A3B8", fontFamily: "var(--font-family-mono)" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 9, fill: "#94A3B8", fontFamily: "var(--font-family-mono)" }} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={tooltipStyle} />
-              <Legend iconSize={8} wrapperStyle={{ fontSize: "11px", fontFamily: "var(--font-family-mono)" }} />
-              <Area type="monotone" dataKey="rainfall" name="Pluie (mm)" stroke="#0D9488" strokeWidth={2} fill="url(#rainGrad)" />
-              <Area type="monotone" dataKey="risk"     name="Risque (%)" stroke="#EF4444" strokeWidth={2} fill="url(#riskGrad2)" strokeDasharray="5 3" />
+              <Area type="monotone" dataKey="temp" name="Temp (°C)" stroke="#D97706" strokeWidth={2} fill="url(#tempGrad)" />
             </AreaChart>
           </ResponsiveContainer>
         </div>

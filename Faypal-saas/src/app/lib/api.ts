@@ -280,6 +280,15 @@ export function getMLPredictionV2(region: string, semaine: number, annee: number
   });
 }
 
+export interface NationalWeather {
+  weekly:  { day: string; date: string; temp: number | null; humidity: number | null; rainfall: number }[];
+  monthly: { month: string; ym: string; temp: number | null; humidity: number | null; rainfall: number }[];
+}
+
+export function getNationalWeather(): Promise<NationalWeather> {
+  return apiFetch<NationalWeather>("/weather/national");
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 export function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();

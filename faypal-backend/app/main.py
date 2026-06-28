@@ -4,7 +4,7 @@ from sqlalchemy import text
 
 from app.database import engine, get_db
 from app.routers import alerts, risk_scores, sensors, zones
-from app.routers import auth, users, dashboard, ml
+from app.routers import auth, users, dashboard, ml, weather
 
 app = FastAPI(
     title="Faypal API",
@@ -31,6 +31,7 @@ app.include_router(sensors.router)
 app.include_router(risk_scores.router)
 app.include_router(alerts.router)
 app.include_router(ml.router)
+app.include_router(weather.router)
 
 
 @app.get("/")
