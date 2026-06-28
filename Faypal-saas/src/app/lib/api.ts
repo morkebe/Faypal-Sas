@@ -251,6 +251,35 @@ export function getMLPrediction(region: string, semaine: number, annee: number):
   });
 }
 
+export interface MLPredictionV2 {
+  region:           string;
+  semaine:          number;
+  annee:            number;
+  cas_predits:      number;
+  intervalle:       { min: number; max: number };
+  niveau_risque:    string;
+  strate:           string;
+  modele:           string;
+  attributs_utilises: {
+    couverture_milda_pct:     number;
+    cps_couverture_pct:       number;
+    aid_couverture_pct:       number;
+    taux_positivite_tdr:      number;
+    incidence_lag1_pour_1000: number;
+    altitude_m:               number;
+    zone_hydro_enc:           number;
+    densite_km2:              number;
+  };
+  timestamp:        string;
+}
+
+export function getMLPredictionV2(region: string, semaine: number, annee: number): Promise<MLPredictionV2> {
+  return apiFetch<MLPredictionV2>("/ml/predict/v2", {
+    method: "POST",
+    body:   JSON.stringify({ region: region.toUpperCase(), semaine, annee }),
+  });
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 export function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();

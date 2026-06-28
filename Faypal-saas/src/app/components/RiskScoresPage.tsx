@@ -10,8 +10,8 @@ import {
 } from "recharts";
 import {
   getRiskScores, getZones, triggerScoreCalc, timeAgo,
-  getMLPrediction, isoWeek,
-  type RiskScoreResponse, type ZoneResponse, type MLPrediction,
+  getMLPrediction, getMLPredictionV2, isoWeek,
+  type RiskScoreResponse, type ZoneResponse, type MLPrediction, type MLPredictionV2,
 } from "../lib/api";
 
 interface RegionRow {
@@ -133,6 +133,7 @@ export function RiskScoresPage({ userRole }: RiskScoresPageProps) {
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [selected, setSelected] = useState<RegionRow | null>(null);
   const [mlPred, setMlPred] = useState<MLPrediction | null>(null);
+  const [mlPredV2, setMlPredV2] = useState<MLPredictionV2 | null>(null);
   const [mlLoading, setMlLoading] = useState(false);
   const [mlError, setMlError] = useState<string | null>(null);
 
@@ -174,12 +175,19 @@ export function RiskScoresPage({ userRole }: RiskScoresPageProps) {
     activeRegionRef.current = r.name;
     setSelected(r);
     setMlPred(null);
+    setMlPredV2(null);
     setMlError(null);
     setMlLoading(true);
-    getMLPrediction(r.name, isoWeek(), new Date().getFullYear())
-      .then(pred => {
+    const week = isoWeek();
+    const year = new Date().getFullYear();
+    Promise.all([
+      getMLPrediction(r.name, week, year),
+      getMLPredictionV2(r.name, week, year),
+    ])
+      .then(([pred, predV2]) => {
         if (activeRegionRef.current !== r.name) return;
         setMlPred(pred);
+        setMlPredV2(predV2);
       })
       .catch((err: unknown) => {
         if (activeRegionRef.current !== r.name) return;
@@ -487,7 +495,7 @@ export function RiskScoresPage({ userRole }: RiskScoresPageProps) {
                 Score actuel · {selected.risk}% · {selected.lastCalc ? timeAgo(selected.lastCalc) : "données statiques"}
               </p>
             </div>
-            <button onClick={() => { setSelected(null); setMlPred(null); setMlError(null); }}
+            <button onClick={() => { setSelected(null); setMlPred(null); setMlPredV2(null); setMlError(null); }}
               style={{ color: "var(--muted-foreground)", fontSize: "16px", lineHeight: 1, background: "none", border: "none", cursor: "pointer" }}>
               ✕
             </button>
@@ -502,13 +510,11 @@ export function RiskScoresPage({ userRole }: RiskScoresPageProps) {
 
             {mlPred ? (
               <>
-                {console.log("[RENDER] mlPred.horizons =", mlPred.horizons)}
                 {(["S+1", "S+4", "S+12"] as const).map(h => {
                   const hz = (mlPred.horizons as Record<string, unknown>)[h] as Record<string, unknown> | undefined;
                   if (!hz) return null;
                   const niv = (hz.niveau_risque as string ?? "FAIBLE").toUpperCase();
                   const cas = hz.cas_predits as number ?? 0;
-                  console.log(`[RENDER] ${h} → cas=${cas} niv=${niv}`);
                   const isPic = mlPred.pic_attendu === h;
                   const nivColor = niv === "CRITIQUE" ? "#EF4444" : niv === "ELEVE" ? "#F97316" : niv === "MODERE" ? "#EAB308" : "#22C55E";
                   const intervalle = hz.intervalle as { min: number; max: number } | undefined;
@@ -533,6 +539,29 @@ export function RiskScoresPage({ userRole }: RiskScoresPageProps) {
                   <p style={{ fontSize: "10px", color: "var(--muted-foreground)", marginTop: "8px" }}>
                     Tendance : {mlPred.tendance_4sem === "hausse" ? "↗ hausse" : mlPred.tendance_4sem === "baisse" ? "↘ baisse" : "→ stable"}
                   </p>
+                )}
+
+                {mlPredV2 && (
+                  <div style={{ marginTop: "12px", borderTop: "1px solid var(--border)", paddingTop: "10px" }}>
+                    <p style={{ fontSize: "10px", fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>
+                      Analyse enrichie (v2)
+                    </p>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px" }}>
+                      {[
+                        ["Couverture MILDA", `${mlPredV2.attributs_utilises.couverture_milda_pct}%`],
+                        ["CPS", `${mlPredV2.attributs_utilises.cps_couverture_pct}%`],
+                        ["Positivité TDR", `${mlPredV2.attributs_utilises.taux_positivite_tdr}%`],
+                        ["Densité", `${mlPredV2.attributs_utilises.densite_km2} /km²`],
+                        ["Altitude", `${mlPredV2.attributs_utilises.altitude_m} m`],
+                        ["Strate", mlPredV2.strate],
+                      ].map(([label, value]) => (
+                        <div key={label} style={{ background: "var(--muted)", borderRadius: "6px", padding: "4px 6px" }}>
+                          <div style={{ fontSize: "9px", color: "var(--muted-foreground)" }}>{label}</div>
+                          <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--foreground)" }}>{value}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </>
             ) : !mlLoading && (

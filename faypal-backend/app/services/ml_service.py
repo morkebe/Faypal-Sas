@@ -30,6 +30,34 @@ def _timeout() -> int:
 
 # ── Prédiction ────────────────────────────────────────────────────────────────
 
+def predict_v2(region: str, semaine: int, annee: int) -> dict:
+    """
+    Appelle POST /predict/v2 sur faypal_ML.
+
+    Retourne la prédiction enrichie (38 attributs) pour S+1 :
+        {
+            "region", "semaine", "annee",
+            "cas_predits", "intervalle", "niveau_risque", "strate",
+            "modele", "attributs_utilises", "timestamp"
+        }
+    """
+    url = f"{_base_url()}/predict/v2"
+    payload = {"region": region, "semaine": semaine, "annee": annee}
+
+    try:
+        resp = requests.post(url, json=payload, timeout=_timeout())
+        resp.raise_for_status()
+        return resp.json()
+    except requests.exceptions.Timeout:
+        raise MLServiceUnavailableError(f"faypal_ML timeout ({_timeout()}s)")
+    except requests.exceptions.ConnectionError:
+        raise MLServiceUnavailableError("faypal_ML inaccessible")
+    except requests.exceptions.HTTPError as exc:
+        raise MLServiceUnavailableError(
+            f"faypal_ML erreur HTTP {exc.response.status_code} : {exc.response.text[:200]}"
+        )
+
+
 def predict_multi_horizon(region: str, semaine: int, annee: int) -> dict:
     """
     Appelle POST /predict/multi-horizon sur faypal_ML.

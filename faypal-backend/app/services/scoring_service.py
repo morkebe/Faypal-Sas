@@ -1,8 +1,8 @@
 from typing import Optional
 
 # ── Pondérations ───────────────────────────────────────────────────────────────
-POIDS_MOUSTIQUES = 0.60   # signal principal : présence du vecteur
-POIDS_METEO      = 0.40   # conditions environnementales favorables
+POIDS_MOUSTIQUES = 0.00   # capteurs non disponibles — temporairement désactivé
+POIDS_METEO      = 1.00   # score basé uniquement sur les conditions climatiques
 
 # ── Seuils moustiques ──────────────────────────────────────────────────────────
 MAX_VECTEURS = 150  # au-delà → score moustique = 1.0
