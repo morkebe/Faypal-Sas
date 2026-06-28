@@ -52,6 +52,9 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@faypal.sn}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Faypal2025!}
+      ADMIN_NOM: ${ADMIN_NOM:-Administrateur}
     depends_on:
       db:
         condition: service_healthy
@@ -59,7 +62,7 @@ services:
         condition: service_healthy
     volumes:
       - ./faypal-backend:/app
-    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    command: sh -c "alembic upgrade head && python init_admin.py && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     restart: unless-stopped
 
   # ── Frontend React/Vite (nginx) ───────────────────────────────────────────
