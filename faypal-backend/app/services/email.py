@@ -8,9 +8,11 @@ from app.config import get_settings
 def send_verification_email(to_email: str, code: str, nom: str | None = None) -> None:
     settings = get_settings()
 
+    sender = settings.smtp_from or settings.smtp_user
+
     msg = MIMEMultipart("alternative")
     msg["Subject"] = f"Faypal — Code de vérification : {code}"
-    msg["From"]    = f"Faypal Health <{settings.gmail_user}>"
+    msg["From"]    = f"Faypal Health <{sender}>"
     msg["To"]      = to_email
 
     display_name = nom or to_email
@@ -48,8 +50,8 @@ def send_verification_email(to_email: str, code: str, nom: str | None = None) ->
     msg.attach(MIMEText(html, "html"))
 
     context = ssl.create_default_context()
-    with smtplib.SMTP("smtp.gmail.com", 587) as server:
+    with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:
         server.ehlo()
         server.starttls(context=context)
-        server.login(settings.gmail_user, settings.gmail_app_password)
-        server.sendmail(settings.gmail_user, to_email, msg.as_string())
+        server.login(settings.smtp_user, settings.smtp_password)
+        server.sendmail(sender, to_email, msg.as_string())

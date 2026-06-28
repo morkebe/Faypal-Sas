@@ -11,8 +11,11 @@ class Settings(BaseSettings):
     debug: bool = True
     ml_service_url: str = "http://ml_service:8001"
     ml_service_timeout: int = 10
-    gmail_user: str = ""
-    gmail_app_password: str = ""
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
 
     class Config:
         env_file = ".env"
